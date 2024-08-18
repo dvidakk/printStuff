@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstdio>
 
-#include "printer/CUPSprinter.h"
+#include "printer/CUPSPrinter.h"
 
 void CUPSPrinter::sendCustomPrintJob(const std::string &printerName, const std::string &jobContent, const std::string &jobName) {
     // CUPS-specific implementation
