@@ -13,5 +13,4 @@ src_files = [
     f for f in glob.glob("src/**/*.cc", recursive=True)
     if not f.startswith(build_dir) and f not in exclude_files
 ]
-
 print("\n".join(src_files))
