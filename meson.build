@@ -32,9 +32,11 @@ if host_machine.system() == 'linux' or host_machine.system() == 'darwin'
 endif
 
 inc_dir = include_directories('include')
+cxxopts_dep = dependency('cxxopts', version: '>=2.2.0', required: true)
+
 
 exe = executable('printStuff', src,
-  dependencies : cups_dep,
+  dependencies : [cxxopts_dep, cups_dep],
   include_directories : inc_dir,
   install : true)
 

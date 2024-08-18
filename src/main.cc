@@ -11,6 +11,8 @@
 #include <cups/cups.h>
 #endif
 
+#include "cxxopts.hpp"
+
 std::vector<std::string> listPrinters() {
     std::vector<std::string> printers;
 
@@ -44,16 +46,7 @@ std::vector<std::string> listPrinters() {
     return printers;
 }
 
-std::string selectPrinter(const std::vector<std::string>& printers) {
-    std::cout << "Available printers:\n";
-    for (size_t i = 0; i < printers.size(); ++i) {
-        std::cout << i + 1 << ". " << printers[i] << "\n";
-    }
-
-    int choice;
-    std::cout << "Select a printer (1-" << printers.size() << "): ";
-    std::cin >> choice;
-
+std::string selectPrinter(const std::vector<std::string>& printers, int choice) {
     if (choice < 1 || static_cast<size_t>(choice) > printers.size()) {
         std::cerr << "Invalid choice\n";
         return "";
@@ -73,43 +66,83 @@ void printToSelectedPrinter(const std::string& printerName, const std::string& j
     }
 }
 
-int main() {
-    std::cout << "Listing printers..." << std::endl;
-    std::vector<std::string> printers = listPrinters();
-    if (printers.empty()) {
-        std::cerr << "No printers found\n";
+
+int main(int argc, char** argv) {
+    cxxopts::Options options("PrinterCLI", "Command-line interface for printer operations");
+
+    options.add_options()
+        ("a,action", "Action to perform (list, print)", cxxopts::value<std::string>())
+        ("p,printer", "Printer number (for print action)", cxxopts::value<int>())
+        ("f,file", "Path to the file to print (for print action)", cxxopts::value<std::string>())
+        ("h,help", "Print usage");
+
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
+        return 0;
+    }
+
+    if (!result.count("action")) {
+        std::cerr << "Action is required" << std::endl;
+        std::cout << options.help() << std::endl;
         return 1;
     }
 
-    std::cout << "Selecting printer..." << std::endl;
-    std::string selectedPrinter = selectPrinter(printers);
-    if (selectedPrinter.empty()) {
-        return 1;
-    }
+    std::string action = result["action"].as<std::string>();
 
-    std::cout << "Creating postscript file..." << std::endl;
-    std::ofstream file("test.ps");
-    if (file.is_open()) {
-        file << "%!PS\n";
-        file << "/Courier findfont 12 scalefont setfont\n";
-        file << "72 720 moveto\n";
-        file << "(Hello, World!) show\n";
-        file << "showpage\n";
-        file.close();
-        std::cout << "Postscript file created successfully." << std::endl;
+ if (action == "list") {
+        std::cout << "Listing printers..." << std::endl;
+        std::vector<std::string> printers = listPrinters();
+        if (printers.empty()) {
+            std::cerr << "No printers found\n";
+            return 1;
+        }
+
+        std::cout << "Available printers:\n";
+        for (size_t i = 0; i < printers.size(); ++i) {
+            std::cout << i + 1 << ". " << printers[i] << "\n";
+        }
+    } else if (action == "print") {
+        if (!result.count("printer") || !result.count("file")) {
+            std::cerr << "Printer number and file path are required for print action\n";
+            std::cout << options.help() << std::endl;
+            return 1;
+        }
+
+        int printerChoice = result["printer"].as<int>();
+        std::string filePath = result["file"].as<std::string>();
+
+        std::cout << "Listing printers..." << std::endl;
+        std::vector<std::string> printers = listPrinters();
+        if (printers.empty()) {
+            std::cerr << "No printers found\n";
+            return 1;
+        }
+
+        std::cout << "Selecting printer..." << std::endl;
+        std::string selectedPrinter = selectPrinter(printers, printerChoice);
+        if (selectedPrinter.empty()) {
+            return 1;
+        }
+
+        std::ifstream fileStream(filePath);
+        if (!fileStream.is_open()) {
+            std::cerr << "Failed to open file: " << filePath << std::endl;
+            return 1;
+        }
+
+        std::string job((std::istreambuf_iterator<char>(fileStream)), std::istreambuf_iterator<char>());
+        fileStream.close();
+
+        std::cout << "Printing job:\n" << job << std::endl;
+        std::cout << "Sending print job..." << std::endl;
+        printToSelectedPrinter(selectedPrinter, job);
     } else {
-        std::cerr << "Failed to create postscript file\n";
+        std::cerr << "Unknown action: " << action << std::endl;
+        std::cout << options.help() << std::endl;
         return 1;
     }
-
-	// send the postscript file to the selected printer
-	std::ifstream fileStream("test.ps");
-	std::string job((std::istreambuf_iterator<char>(fileStream)), std::istreambuf_iterator<char>());
-	fileStream.close();
-    
-	std::cout << "Printing job:\n" << job << std::endl;
-    std::cout << "Sending print job..." << std::endl;
-    printToSelectedPrinter(selectedPrinter, job);
 
     return 0;
 }
